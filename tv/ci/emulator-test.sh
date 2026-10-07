@@ -30,10 +30,16 @@ sleep 3
 shot 02-after-login-click
 run $D eval "({dialog: !!document.querySelector('[role=dialog]'), text: (document.querySelector('[role=dialog]') || {}).innerText?.slice(0, 80)})"
 
+report "scroll: push the pointer down against the bottom edge"
+run $D eval "scrollY"
+run $D move down 75
+sleep 2
+run $D eval "scrollY"
+shot 02b-scrolled
+
 report "anime page: open the player with the pointer"
 run $D nav "https://animeon.cc/anime/ataka-titanov-16498"
 sleep 12
-rm -f cursor.json   # the page changed, but the pointer didn't move: keep tracking from where it is
 run $D point "[...document.querySelectorAll('a,button')].find(e => /^Смотреть$/.test(e.textContent.trim()))" click
 sleep 4
 run $D point "document.querySelector('div.aspect-video div.cursor-pointer')" click

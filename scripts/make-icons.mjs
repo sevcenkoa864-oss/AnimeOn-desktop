@@ -234,14 +234,10 @@ function renderBanner(w, h, logo) {
     for (let x = 0; x < w; x++) {
       const t = (x / w + y / h) / 2;
       const bg = [0x1c, 0x19, 0x26].map((c, i) => c + ([0x0a, 0x0a, 0x0c][i] - c) * t);
-      let m = [0, 0, 0, 0];
-      if (logo) m = sampleLogo(logo, (x - left) / side, (y - top) / side, (x + 1 - left) / side, (y + 1 - top) / side);
-      else {
-        const u = (x - w / 2) / side;
-        const v = (y - h / 2) / side;
-        const g = playGlyph(u, v);
-        m = [g, g, g, g];
-      }
+      const g = playGlyph((x - w / 2) / side, (y - h / 2) / side);
+      const m = logo
+        ? sampleLogo(logo, (x - left) / side, (y - top) / side, (x + 1 - left) / side, (y + 1 - top) / side)
+        : [g, g, g, g];
       const i = (y * w + x) * 4;
       for (let c = 0; c < 3; c++) px[i + c] = Math.round(m[c] * 255 + bg[c] * (1 - m[3]));
       px[i + 3] = 255;

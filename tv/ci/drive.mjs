@@ -3,6 +3,7 @@
 //
 //   node drive.mjs eval  "<js expression>"        evaluate in the page, print the JSON result
 //   node drive.mjs nav   <url>                    navigate the page
+//   node drive.mjs move  <up|down|left|right> <n>   press a D-pad key n times
 //   node drive.mjs point "<js returning element>" [click]
 //        move the pointer onto the element with D-pad key events, optionally press OK
 //
@@ -50,6 +51,12 @@ async function evaluate(expression) {
   return r.result.value;
 }
 
+function screenInfo() {
+  const size = adb('shell', 'wm', 'size').match(/(\d+)x(\d+)\s*$/);
+  const dens = Number(adb('shell', 'wm', 'density').match(/(\d+)\s*$/)[1]);
+  return [Number(size[1]), Number(size[2]), dens];
+}
+
 function press(key, times) {
   // `input keyevent` takes many key codes at once; chunk to keep the command line short.
   for (let left = times; left > 0; left -= 40)
@@ -60,10 +67,25 @@ if (cmd === 'eval') {
   console.log(JSON.stringify(await evaluate(arg), null, 1));
 } else if (cmd === 'nav') {
   await cdp('Page.navigate', { url: arg });
+} else if (cmd === 'move') {
+  const [W, H, dens] = screenInfo();
+  const step = (9 * dens) / 160;
+  const edge = (12 * dens) / 160;
+  const pos = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : { x: W / 2, y: H / 2 };
+  const n = Number(opt);
+  press(KEYS[arg], n);
+  // the same rules as MainActivity.moveCursor: a key moves the pointer, except up/down against the edge (scrolls)
+  for (let i = 0; i < n; i++) {
+    if (arg === 'left') pos.x -= step;
+    else if (arg === 'right') pos.x += step;
+    else if (arg === 'up' && pos.y > edge) pos.y -= step;
+    else if (arg === 'down' && pos.y < H - edge) pos.y += step;
+    pos.x = Math.min(Math.max(pos.x, 0), W - 1);
+    pos.y = Math.min(Math.max(pos.y, 0), H - 1);
+  }
+  writeFileSync(STATE, JSON.stringify(pos));
 } else if (cmd === 'point') {
-  const screen = adb('shell', 'wm', 'size').match(/(\d+)x(\d+)\s*$/);
-  const dens = Number(adb('shell', 'wm', 'density').match(/(\d+)\s*$/)[1]);
-  const [W, H] = [Number(screen[1]), Number(screen[2])];
+  const [W, H, dens] = screenInfo();
   const step = (9 * dens) / 160;
   const here = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : { x: W / 2, y: H / 2 };
 

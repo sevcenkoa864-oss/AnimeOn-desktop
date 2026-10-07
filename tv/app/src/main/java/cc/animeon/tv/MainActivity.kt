@@ -92,8 +92,8 @@ class MainActivity : Activity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             mediaPlaybackRequiresUserGesture = false // autoplay
-            useWideViewPort = true // lay the site out 1280 CSS px wide, see PAGE_JS
-            loadWithOverviewMode = true
+            useWideViewPort = true
+            loadWithOverviewMode = false // keep the TV's natural scale: big, readable from the couch
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
@@ -160,7 +160,7 @@ class MainActivity : Activity() {
             hideSplash()
         }
 
-        /** Single-page navigations: the site may have rewritten the viewport meta. */
+        /** Single-page navigations: make sure our CSS is still there. */
         override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) = inject()
 
         override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
@@ -293,7 +293,7 @@ class MainActivity : Activity() {
         x = x.coerceIn(0f, root.width - 1f)
         y = y.coerceIn(0f, root.height - 1f)
         cursor.moveTo(x, y)
-        send(MotionEvent.ACTION_HOVER_MOVE, x, y, 0, generic = true)
+        send(MotionEvent.ACTION_HOVER_MOVE, x, y)
         if (scrollDir != 0) scroll(scrollDir, 1f)
     }
 
@@ -302,17 +302,37 @@ class MainActivity : Activity() {
         val y = cursor.cy
         val tgt = target
         cursor.wake()
-        send(MotionEvent.ACTION_DOWN, x, y, MotionEvent.BUTTON_PRIMARY)
-        ui.postDelayed({ if (target === tgt) send(MotionEvent.ACTION_UP, x, y, 0) }, 60)
+        tap(MotionEvent.ACTION_DOWN, x, y)
+        ui.postDelayed({ if (target === tgt) tap(MotionEvent.ACTION_UP, x, y) }, 60)
     }
 
     /** One wheel tick (`ticks` of them) at the pointer; positive `dir` scrolls down. */
     private fun scroll(dir: Int, ticks: Float) {
-        send(MotionEvent.ACTION_SCROLL, cursor.cx, cursor.cy, 0, generic = true, vscroll = -dir * ticks)
+        send(MotionEvent.ACTION_SCROLL, cursor.cx, cursor.cy, vscroll = -dir * ticks)
     }
 
-    /** A mouse event, built the way a real mouse's events arrive. */
-    private fun send(action: Int, x: Float, y: Float, buttons: Int, generic: Boolean = false, vscroll: Float = 0f) {
+    /** One half of a finger tap at (x, y). */
+    private fun tap(action: Int, x: Float, y: Float) {
+        val now = SystemClock.uptimeMillis()
+        val props = MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_FINGER
+        }
+        val coords = MotionEvent.PointerCoords().apply {
+            this.x = x
+            this.y = y
+            pressure = if (action == MotionEvent.ACTION_UP) 0f else 1f
+            size = 1f
+        }
+        val event = MotionEvent.obtain(
+            now, now, action, 1, arrayOf(props), arrayOf(coords), 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0,
+        )
+        target.dispatchTouchEvent(event)
+        event.recycle()
+    }
+
+    /** A mouse event (hover, wheel), built the way a real mouse's events arrive. */
+    private fun send(action: Int, x: Float, y: Float, vscroll: Float = 0f) {
         val now = SystemClock.uptimeMillis()
         val props = MotionEvent.PointerProperties().apply {
             id = 0
@@ -321,14 +341,14 @@ class MainActivity : Activity() {
         val coords = MotionEvent.PointerCoords().apply {
             this.x = x
             this.y = y
-            pressure = if (buttons != 0) 1f else 0f
+            pressure = 0f
             size = 1f
             if (vscroll != 0f) setAxisValue(MotionEvent.AXIS_VSCROLL, vscroll)
         }
         val event = MotionEvent.obtain(
-            now, now, action, 1, arrayOf(props), arrayOf(coords), 0, buttons, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0,
+            now, now, action, 1, arrayOf(props), arrayOf(coords), 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0,
         )
-        if (generic) target.dispatchGenericMotionEvent(event) else target.dispatchTouchEvent(event)
+        target.dispatchGenericMotionEvent(event)
         event.recycle()
     }
 
@@ -378,8 +398,8 @@ class MainActivity : Activity() {
         val BG = Color.parseColor("#0A0A0A")
 
         /**
-         * Runs on every page (idempotent): loads our CSS (Manrope, hidden blocks, hero fix), lays the site out
-         * 1280 CSS px wide whatever the TV's density is, and tracks the Kodik player's state for the media keys.
+         * Runs on every page (idempotent): loads our CSS (Manrope, hidden blocks, hero fix) and tracks the Kodik
+         * player's state for the media keys.
          */
         const val PAGE_JS = """(function () {
   var d = document;
@@ -390,13 +410,6 @@ class MainActivity : Activity() {
     l.href = 'https://animeon.cc/__tv/tv-site.css';
     (d.head || d.documentElement).appendChild(l);
   }
-  var m = d.querySelector('meta[name=viewport]');
-  if (!m) {
-    m = d.createElement('meta');
-    m.name = 'viewport';
-    (d.head || d.documentElement).appendChild(m);
-  }
-  if (m.content !== 'width=1280') m.content = 'width=1280';
   if (window.__tv) return;
   var tv = window.__tv = { paused: true, t: 0 };
   window.addEventListener('message', function (e) {
@@ -423,7 +436,7 @@ class MainActivity : Activity() {
 })();"""
 
         const val OFFLINE_HTML = """<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=1280"><title>No connection</title><style>
+<meta name="viewport" content="width=device-width"><title>No connection</title><style>
 body{margin:0;background:#0a0a0a;color:#fafafa;font-family:sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}
 h1{font-size:44px;margin:0 0 12px}p{color:#a1a1a1;font-size:24px;margin:8px 0}
 a{display:inline-block;margin-top:28px;padding:18px 48px;background:#7c4dff;color:#fff;border-radius:14px;font-size:28px;font-weight:600;text-decoration:none}
