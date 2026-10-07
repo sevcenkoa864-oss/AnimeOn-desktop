@@ -16,7 +16,7 @@ android {
         minSdk = 24
         targetSdk = 35
         versionName = appVersion
-        versionCode = major * 1_000_000 + minor * 1_000 + patch
+        versionCode = maxOf(1, major * 1_000_000 + minor * 1_000 + patch)
     }
 
     // CI signs releases with a fixed key (secrets), so installed copies can be updated in place. Without the
