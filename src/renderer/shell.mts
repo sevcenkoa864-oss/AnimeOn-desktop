@@ -11,7 +11,6 @@ let retryTimer: number | undefined;
 function render(s: State): void {
   kind = s.kind;
   document.body.dataset.kind = s.kind;
-  if (s.logo) document.querySelector<HTMLImageElement>('.logo')!.src = s.logo;
   document.getElementById('detail')!.textContent = s.message ?? '';
   window.clearInterval(retryTimer);
   if (s.kind === 'error') retryTimer = window.setInterval(() => shellApi.retry(), AUTO_RETRY_MS);

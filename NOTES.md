@@ -90,11 +90,10 @@ Checked via the Chrome DevTools Protocol and the main-process inspector (no scre
 
 ## Logo
 
-- The published installers/exe use only the app's original play-button icon (`scripts/make-icons.mjs`).
-- At runtime `src/main/siteicon.ts` downloads animeon.cc's own app icon (`/favicon-512.png`, the icon its web
-  manifest offers for "install as app"), caches it in the profile (`site-icon.png`) and shows it on the window,
-  taskbar, tray (Windows), Dock (macOS) and splash, like a browser shows a favicon. The logo is never committed or
-  bundled. The repository is public, so this keeps the site's artwork out of what is distributed.
+- The app icon is animeon.cc's own app icon (`/favicon-512.png`, the icon its web manifest offers for "install as
+  app"). `scripts/make-icons.mjs` downloads it at build time into `assets/` (git-ignored) and derives every icon from
+  it: Windows/macOS icon on a dark tile, macOS menu-bar template from its line-art, transparent mark for the splash.
+  Nothing from the logo is committed. If the download fails, an original play-button icon is used instead.
 - Title bar: no logo or text (user's choice).
 
 ## macOS

@@ -14,7 +14,6 @@ import {
   type BrowserWindowConstructorOptions,
   type IpcMainEvent,
   type IpcMainInvokeEvent,
-  type NativeImage,
   type Rectangle,
   type Session,
   type WebContents,
@@ -24,7 +23,6 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setAdblock } from './adblock.js';
 import { blockedHosts, configureImageProxy, noteFailure, probeBlockedHosts } from './imageproxy.js';
-import { loadSiteIcon } from './siteicon.js';
 import { clampZoom, getSettings, sanitizeSetting, store, type Settings } from './store.js';
 import { checkForUpdates, installUpdate, openReleasePage, startUpdater, updateState } from './updater.js';
 import { chromeUserAgent, HOME, isAppUrl, isAuthFlowUrl, isAuthPopupUrl, isWebUrl } from './urls.js';
@@ -96,7 +94,7 @@ function siteCss(): string {
   return siteCssText;
 }
 
-export type ShellState = { kind: 'loading' | 'ready' | 'error'; title: string; message?: string; logo?: string };
+export type ShellState = { kind: 'loading' | 'ready' | 'error'; title: string; message?: string };
 
 let win: BrowserWindow | undefined;
 let view: WebContentsView | undefined;
@@ -110,7 +108,6 @@ let loadFailed = false;
 let lastUrl = START_URL;
 let shellState: ShellState = { kind: 'loading', title: 'AnimeOn' };
 let sleepBlocker = -1;
-let siteIcon: NativeImage | undefined; // the site's own icon, see siteicon.ts
 
 // ---------- pre-ready setup ----------
 
@@ -141,8 +138,7 @@ async function start(): Promise<void> {
   createWindow();
   createTray();
   syncLoginItem();
-  void loadSiteIcon(siteSession).then(applySiteIcon);
-  startUpdater(appIcon);
+  startUpdater(ICON);
   // With a cached engine this is instant; on first run it downloads the lists while the splash is up.
   // Start from the last known set of blocked image hosts, then re-check this network in the background.
   configureImageProxy(store.get('imageProxy'), store.get('blockedImageHosts'));
@@ -236,7 +232,7 @@ function createWindow(): void {
     minHeight: 480,
     show: false,
     title: APP_NAME,
-    icon: appIcon(),
+    icon: ICON,
     backgroundColor: BG,
     ...WINDOW_CHROME,
     webPreferences: { preload: PRELOAD, sandbox: true, contextIsolation: true, nodeIntegration: false },
@@ -291,18 +287,6 @@ function layout(): void {
   const { width, height } = win.getContentBounds();
   const top = htmlFullScreen || win.isFullScreen() ? 0 : TITLE_H;
   view.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) });
-}
-
-const appIcon = (): NativeImage | string => siteIcon ?? ICON;
-
-/** Shows the site's icon on the running app: window/taskbar, tray (Windows), Dock (macOS) and the splash. */
-function applySiteIcon(img: NativeImage | undefined): void {
-  if (!img) return;
-  siteIcon = img;
-  for (const w of BrowserWindow.getAllWindows()) w.setIcon(img);
-  if (isMac) app.dock?.setIcon(img);
-  else tray?.setImage(img.resize({ width: 32, height: 32, quality: 'best' }));
-  setShellState({ logo: img.resize({ width: 224, quality: 'best' }).toDataURL() });
 }
 
 function setShellState(patch: Partial<ShellState>): void {
@@ -401,7 +385,7 @@ function authPopupOptions(): BrowserWindowConstructorOptions {
     parent: win,
     backgroundColor: '#ffffff',
     autoHideMenuBar: true,
-    icon: appIcon(),
+    icon: ICON,
     webPreferences: { session: siteSession, sandbox: true, contextIsolation: true, nodeIntegration: false },
   };
 }
@@ -557,7 +541,7 @@ function showAbout(): void {
       'Unofficial client, not affiliated with animeon.cc.',
       'All content belongs to its respective owners.',
     ].join('\n'),
-    icon: siteIcon ?? nativeImage.createFromPath(ICON),
+    icon: nativeImage.createFromPath(ICON),
   };
   void (win?.isVisible() ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts));
 }
@@ -644,7 +628,7 @@ function openSettings(): void {
     fullscreenable: false,
     show: false,
     title: 'Settings',
-    icon: appIcon(),
+    icon: ICON,
     backgroundColor: BG,
     ...WINDOW_CHROME,
     webPreferences: { preload: PRELOAD, sandbox: true, contextIsolation: true, nodeIntegration: false },

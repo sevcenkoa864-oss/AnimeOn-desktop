@@ -1,4 +1,4 @@
-import { app, Notification, shell, type NativeImage } from 'electron';
+import { app, Notification, shell } from 'electron';
 import electronUpdater from 'electron-updater';
 import { isNewerVersion } from './version.js';
 
@@ -14,7 +14,7 @@ const CHECK_EVERY = 4 * 3600 * 1000;
 export type UpdateState = { kind: 'none' } | { kind: 'ready' | 'available'; version: string };
 
 let state: UpdateState = { kind: 'none' };
-let icon: () => NativeImage | string = () => '';
+let icon = '';
 
 const selfUpdating = (): boolean => process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_FILE;
 
@@ -22,13 +22,13 @@ export const updateState = (): UpdateState => state;
 
 function notify(title: string, body: string, onClick?: () => void): void {
   if (!Notification.isSupported()) return;
-  const n = new Notification({ title, body, icon: icon() });
+  const n = new Notification({ title, body, icon });
   if (onClick) n.on('click', onClick);
   n.show();
 }
 
 /** Starts background checks (packaged builds only). */
-export function startUpdater(notificationIcon: () => NativeImage | string): void {
+export function startUpdater(notificationIcon: string): void {
   if (!app.isPackaged) return;
   icon = notificationIcon;
   if (selfUpdating()) {

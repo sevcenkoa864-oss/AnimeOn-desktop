@@ -7,9 +7,9 @@ while you watch. Runs on Windows and macOS.
 
 > **Unofficial client, not affiliated with animeon.cc.** All content and trademarks belong to their owners.
 >
-> **Logo:** the installers and the exe carry only the app's own original icon. While running, the app shows
-> animeon.cc's own icon (window, taskbar, tray, splash), downloaded from the site the way a browser shows a favicon.
-> Nothing from the site's logo is stored in this repository or in the published builds.
+> **Logo:** the app icon is animeon.cc's own app icon (the one its web manifest offers for "install as app"). It is
+> not stored in this repository: `npm run icons` downloads it at build time into the git-ignored `assets/` folder. If
+> the download fails, an original play-button icon is used instead.
 
 ## Features
 
