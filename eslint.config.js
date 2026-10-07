@@ -4,7 +4,7 @@ import prettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'release', 'node_modules'] },
+  { ignores: ['dist', 'release', 'node_modules', 'tv'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   { languageOptions: { parserOptions: { projectService: { allowDefaultProject: ['*.js', 'scripts/*.mjs'] } } } },

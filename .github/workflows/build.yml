@@ -39,9 +39,45 @@ jobs:
             release/latest*.yml
           if-no-files-found: error
 
+  # Android TV app (tv/). Signed with the key in the repository secrets so installed copies can be updated in place.
+  tv:
+    runs-on: ubuntu-latest
+    env:
+      TV_KEYSTORE_FILE: ${{ github.workspace }}/tv-release.jks
+      TV_KEYSTORE_PASSWORD: ${{ secrets.TV_KEYSTORE_PASSWORD }}
+      TV_KEY_ALIAS: ${{ secrets.TV_KEY_ALIAS }}
+      TV_KEY_PASSWORD: ${{ secrets.TV_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Generate icons (downloads the logo)
+        run: node scripts/make-icons.mjs
+      - name: Signing key
+        run: echo "${{ secrets.TV_KEYSTORE_BASE64 }}" | base64 -d > "$TV_KEYSTORE_FILE"
+      - name: Build APK
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          case "$VERSION" in [0-9]*.[0-9]*.[0-9]*) ;; *) VERSION=0.0.0 ;; esac
+          gradle -p tv assembleRelease -PversionName="$VERSION"
+          cp tv/app/build/outputs/apk/release/app-release.apk "AnimeOnTV-$VERSION.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AnimeOnDesktop-AndroidTV
+          path: AnimeOnTV-*.apk
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, tv]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -68,4 +104,7 @@ jobs:
           **macOS** (12+, Intel and Apple Silicon)
           - \`AnimeOnDesktop-*-mac.dmg\`: drag the app to Applications
 
-          Not notarized: open it the first time with right-click → **Open** (macOS 15+: System Settings → Privacy & Security → **Open Anyway**)."
+          Not notarized: open it the first time with right-click → **Open** (macOS 15+: System Settings → Privacy & Security → **Open Anyway**).
+
+          **Android TV**
+          - \`AnimeOnTV-*.apk\`: remote-controlled app (arrows move a pointer, OK clicks). Sideload it, see the README."

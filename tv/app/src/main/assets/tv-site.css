@@ -1,0 +1,44 @@
+/*
+ * Injected into every animeon.cc page by the TV app (MainActivity.kt). Same rules as the desktop app
+ * (HIDDEN_BLOCKS and HERO_FIT_CSS in src/main/main.ts): keep the two in sync.
+ */
+@import url('manrope.css');
+
+*,
+*::before,
+*::after {
+  font-family: Manrope, system-ui, sans-serif !important;
+}
+
+/* Hidden: "Путь к манге", "Боевой пропуск", Telegram banner, footer */
+section:has(> .pm-sheet),
+section:has(> .bpp-shell),
+main section:has([class*='#2AABEE']),
+footer {
+  display: none !important;
+}
+
+/* Home hero: title column and fit (see the comment in main.ts) */
+.hero-slider-height h2 {
+  font-size: min(4.7vw, 5.5vh, 3.75rem) !important;
+  max-width: none !important;
+  width: max(100%, min(80rem, 55vw)) !important;
+}
+.hero-slider-height .items-end {
+  align-items: safe flex-end !important;
+  padding-top: 5.5rem !important;
+}
+.hero-slider-height > .pointer-events-none.bottom-0 {
+  z-index: 0 !important;
+}
+@media (max-height: 1100px) {
+  .hero-slider-height h2 {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+  .hero-slider-height .items-end {
+    padding-bottom: min(9rem, 7vh) !important;
+  }
+}
