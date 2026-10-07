@@ -35,7 +35,7 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
-          profile: tv_1080p
+          profile: tv_720p
           disable-animations: true
           ram-size: 4096M
           heap-size: 512M
