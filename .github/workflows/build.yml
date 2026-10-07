@@ -69,6 +69,10 @@ jobs:
           case "$VERSION" in [0-9]*.[0-9]*.[0-9]*) ;; *) VERSION=$(node -p "require('./package.json').version") ;; esac
           gradle -p tv assembleRelease -PversionName="$VERSION"
           cp tv/app/build/outputs/apk/release/app-release.apk "AnimeOnTV-$VERSION.apk"
+      - name: Check the signature
+        run: |
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          "$APKSIGNER" verify --print-certs AnimeOnTV-*.apk
       - uses: actions/upload-artifact@v4
         with:
           name: AnimeOnDesktop-AndroidTV
