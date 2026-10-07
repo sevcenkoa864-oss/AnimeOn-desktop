@@ -10,7 +10,7 @@ PKG=cc.animeon.tv.unofficial
 D="node tv/ci/drive.mjs"
 shot() { adb exec-out screencap -p > "$OUT/$1.png"; }
 report() { echo "### $*" | tee -a "$OUT/report.txt"; }
-alive() { echo "alive($1): pid=$(adb shell pidof "$PKG" | tr -d '') top=$(adb shell dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity' | cut -c1-120)" | tee -a "$OUT/report.txt"; }
+alive() { echo "alive($1): pid=$(adb shell pidof "$PKG" | tr -d '\r') top=$(adb shell dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity' | cut -c1-120)" | tee -a "$OUT/report.txt"; }
 run() { echo "\$ $*" | tee -a "$OUT/report.txt"; "$@" 2>&1 | tee -a "$OUT/report.txt"; }
 
 adb install -r tv/app/build/outputs/apk/debug/app-debug.apk

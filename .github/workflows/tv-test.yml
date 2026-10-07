@@ -41,9 +41,7 @@ jobs:
           heap-size: 512M
           cores: 4
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: |
-            sed -i 's/$//' tv/ci/emulator-test.sh
-            bash tv/ci/emulator-test.sh
+          script: bash tv/ci/emulator-test.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
