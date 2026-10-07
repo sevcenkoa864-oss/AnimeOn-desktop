@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:"
+    />
+    <link rel="stylesheet" href="fonts/manrope.css" />
+    <title>AnimeOn Desktop</title>
+    <style>
+      :root {
+        --bg: #0a0a0a;
+        --card: #171717;
+        --fg: #fafafa;
+        --muted: #a1a1a1;
+        --accent: #7c4dff;
+        --bar: 32px;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          13px/1.4 Manrope,
+          system-ui,
+          sans-serif;
+        overflow: hidden;
+        user-select: none;
+      }
+      #bar {
+        height: var(--bar);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 140px 0 12px; /* right side is reserved for the native window buttons */
+        -webkit-app-region: drag;
+      }
+      [data-platform='darwin'] #bar {
+        padding: 0 12px 0 80px; /* macOS traffic lights sit on the left */
+      }
+      #bar img {
+        width: 20px;
+        height: 20px;
+      }
+      main {
+        position: absolute;
+        inset: var(--bar) 0 0 0;
+        display: grid;
+        place-items: center;
+      }
+      .panel {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        text-align: center;
+        max-width: 380px;
+        padding: 24px;
+      }
+      body[data-kind='loading'] #loading,
+      body[data-kind='error'] #error {
+        display: flex;
+      }
+      .logo {
+        width: 112px;
+        height: 112px;
+        animation: breathe 1.8s ease-in-out infinite;
+        filter: drop-shadow(0 8px 32px rgb(124 77 255 / 0.45));
+      }
+      .track {
+        width: 140px;
+        height: 3px;
+        border-radius: 3px;
+        background: #262626;
+        overflow: hidden;
+      }
+      .track::after {
+        content: '';
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 3px;
+        background: var(--accent);
+        animation: slide 1.1s ease-in-out infinite;
+      }
+      @keyframes breathe {
+        50% {
+          transform: scale(0.94);
+          opacity: 0.85;
+        }
+      }
+      @keyframes slide {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(250%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .logo,
+        .track::after {
+          animation: none;
+        }
+      }
+      h1 {
+        margin: 6px 0 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .detail {
+        font-size: 12px;
+        color: #737373;
+      }
+      button {
+        margin-top: 6px;
+        padding: 9px 22px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover {
+        filter: brightness(1.1);
+      }
+      button:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+      }
+      .offline-icon {
+        width: 48px;
+        height: 48px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body data-kind="loading">
+    <div id="bar"><img src="../../assets/logo.png" alt="" /></div>
+    <main>
+      <section class="panel" id="loading" aria-live="polite">
+        <img class="logo" src="../../assets/logo.png" alt="" />
+        <div class="track" role="progressbar" aria-label="Loading"></div>
+      </section>
+      <section class="panel" id="error" role="alert">
+        <svg
+          class="offline-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 8.8a15 15 0 0 1 4.2-2.6M9.8 5.1A15 15 0 0 1 22 8.8M5 12.4a10 10 0 0 1 3.3-2M15.6 10.5A10 10 0 0 1 19 12.4M8.5 16a5 5 0 0 1 7 0M12 20h.01M3 3l18 18"
+          />
+        </svg>
+        <h1>No connection</h1>
+        <p>Couldn't reach animeon.cc. Check your internet connection.</p>
+        <p class="detail" id="detail"></p>
+        <button id="retry" type="button">Retry</button>
+        <p class="detail">Retrying automatically when the network is back.</p>
+      </section>
+    </main>
+    <script type="module" src="shell.mjs"></script>
+  </body>
+</html>

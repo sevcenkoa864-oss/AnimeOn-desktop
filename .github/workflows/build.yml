@@ -1,0 +1,33 @@
+# Builds the Windows installer/portable exe and the macOS .dmg on GitHub-hosted runners
+# (electron-builder can only produce a .dmg on macOS). Download the results from the run's "Artifacts".
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run dist -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AnimeOnDesktop-${{ runner.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+          if-no-files-found: error

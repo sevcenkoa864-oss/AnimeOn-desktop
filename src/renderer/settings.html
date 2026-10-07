@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'"
+    />
+    <link rel="stylesheet" href="fonts/manrope.css" />
+    <title>Settings</title>
+    <style>
+      :root {
+        --bg: #0a0a0a;
+        --card: #171717;
+        --line: rgb(255 255 255 / 0.08);
+        --fg: #fafafa;
+        --muted: #a1a1a1;
+        --accent: #7c4dff;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden; /* only <main> scrolls, so the scrollbar never runs under the window buttons */
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          13px/1.45 Manrope,
+          system-ui,
+          sans-serif;
+      }
+      header {
+        height: 32px;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        font-weight: 600;
+        -webkit-app-region: drag;
+        user-select: none;
+      }
+      [data-platform='darwin'] header {
+        justify-content: center; /* macOS centres window titles; traffic lights are on the left */
+      }
+      main {
+        height: calc(100% - 32px);
+        overflow-y: auto;
+        padding: 4px 16px 16px;
+      }
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #3f3f46;
+        border: 3px solid var(--bg);
+        border-radius: 999px;
+      }
+      h2 {
+        margin: 18px 4px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 11px 14px;
+        min-height: 48px;
+      }
+      .row + .row {
+        border-top: 1px solid var(--line);
+      }
+      .row small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .row.stack {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      /* Switch built on a native checkbox: keeps keyboard + screen reader behaviour. */
+      input[type='checkbox'] {
+        appearance: none;
+        flex: none;
+        width: 36px;
+        height: 20px;
+        margin: 0;
+        border-radius: 999px;
+        background: #3f3f46;
+        position: relative;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      input[type='checkbox']::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.15s;
+      }
+      input[type='checkbox']:checked {
+        background: var(--accent);
+      }
+      input[type='checkbox']:checked::after {
+        transform: translateX(16px);
+      }
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      select,
+      textarea {
+        background: #0f0f0f;
+        color: var(--fg);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font: inherit;
+        padding: 6px 8px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 64px;
+        resize: vertical;
+        font-family: inherit;
+        font-size: 12px;
+      }
+      button {
+        padding: 7px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: #262626;
+        color: var(--fg);
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #2e2e2e;
+      }
+      button.danger {
+        color: #fca5a5;
+        border-color: rgb(248 113 113 / 0.3);
+      }
+      button.primary {
+        background: var(--accent);
+        border-color: transparent;
+        color: #fff;
+      }
+      .notice {
+        display: none;
+        margin-top: 10px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        background: rgb(124 77 255 / 0.12);
+        border: 1px solid rgb(124 77 255 / 0.35);
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .notice.show {
+        display: flex;
+      }
+      footer {
+        margin-top: 18px;
+        color: #737373;
+        font-size: 12px;
+        text-align: center;
+      }
+      label {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <header>Settings</header>
+    <main>
+      <h2>Window</h2>
+      <div class="card">
+        <label class="row"
+          ><span
+            ><span data-mac="Keep running when closed">Close to tray</span
+            ><small data-mac="Closing the window keeps the app in the menu bar and Dock."
+              >Closing the window keeps the app running in the tray.</small
+            ></span
+          ><input type="checkbox" data-key="closeToTray"
+        /></label>
+        <label class="row"
+          ><span data-mac="Open at login">Start with Windows</span><input type="checkbox" data-key="startWithWindows"
+        /></label>
+        <label class="row"
+          ><span
+            >Start minimized<small data-mac="When opened at login, stay hidden."
+              >When started with Windows, stay in the tray.</small
+            ></span
+          ><input type="checkbox" data-key="startMinimized"
+        /></label>
+        <label class="row"
+          ><span>Default zoom<small>Ctrl+0 resets to this.</small></span>
+          <select data-key="defaultZoom">
+            <option value="0.8">80%</option>
+            <option value="0.9">90%</option>
+            <option value="1">100%</option>
+            <option value="1.1">110%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="1.75">175%</option>
+            <option value="2">200%</option>
+          </select>
+        </label>
+      </div>
+
+      <h2>Playback &amp; performance</h2>
+      <div class="card">
+        <label class="row"
+          ><span>Hardware acceleration<small>Turn off only if video flickers or shows a black screen.</small></span
+          ><input type="checkbox" data-key="hardwareAcceleration"
+        /></label>
+      </div>
+      <div class="notice" id="restart">
+        <span>Restart to apply this change.</span
+        ><button class="primary" id="relaunch" type="button">Restart now</button>
+      </div>
+
+      <h2>Ad blocker</h2>
+      <div class="card">
+        <label class="row"><span>Block ads and trackers</span><input type="checkbox" data-key="adblock" /></label>
+        <div class="row stack">
+          <label for="exceptions"
+            >Exceptions<small
+              >One domain per line. Nothing is blocked to or from these sites. Use it if a player breaks.</small
+            ></label
+          >
+          <textarea id="exceptions" spellcheck="false" placeholder="kodikplayer.com"></textarea>
+        </div>
+      </div>
+
+      <h2>Data</h2>
+      <div class="card">
+        <div class="row">
+          <span>Cache, cookies and site data<small>Signs you out of animeon.cc.</small></span
+          ><button class="danger" id="clear" type="button">Clear…</button>
+        </div>
+      </div>
+
+      <footer>
+        <div id="version"></div>
+        <div>Unofficial client, not affiliated with animeon.cc.</div>
+      </footer>
+    </main>
+    <script type="module" src="settings.mjs"></script>
+  </body>
+</html>

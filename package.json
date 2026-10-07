@@ -1,0 +1,86 @@
+{
+  "name": "animeon-desktop",
+  "productName": "AnimeOn Desktop (Unofficial)",
+  "version": "1.0.0",
+  "description": "Unofficial desktop client for animeon.cc",
+  "author": "sevcenkoa864",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc -p . && node scripts/copy-static.mjs",
+    "dev": "npm run icons && npm run build && electron . --dev",
+    "start": "electron .",
+    "lint": "eslint . && prettier --check .",
+    "test": "npm run build && node --test dist/main/urls.test.js",
+    "format": "prettier --write .",
+    "icons": "node scripts/make-icons.mjs",
+    "dist": "npm run icons && npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "cc.animeon.desktop.unofficial",
+    "productName": "AnimeOn Desktop",
+    "executableName": "AnimeOnDesktop",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**",
+      "assets/**",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AnimeOn Desktop",
+      "artifactName": "AnimeOnDesktop-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "AnimeOnDesktop-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "icon": "assets/icon-mac.png",
+      "category": "public.app-category.entertainment",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "artifactName": "AnimeOnDesktop-${version}-mac.${ext}",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "darkModeSupport": true
+    }
+  },
+  "dependencies": {
+    "@ghostery/adblocker-electron": "^2.18.2",
+    "electron-store": "^11.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "electron": "^44.6.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.71.1"
+  }
+}
