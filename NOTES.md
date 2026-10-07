@@ -144,3 +144,27 @@ What the app does (`src/main/imageproxy.ts`):
   read `releases/latest` from the GitHub API and show a notification linking to the release.
 - The release job uploads `latest*.yml` and `*.blockmap` next to the installers. Releases before v1.0.2 don't have
   them and their apps have no updater: installing v1.0.2 by hand once is needed.
+
+## Android TV app (`tv/`)
+
+- Kotlin, no AndroidX: one `Activity` with a full-screen `WebView` and a pointer overlay (`CursorView`). The site needs
+  a mouse (hover, nested iframes), which focus-based D-pad navigation can't reach, so the arrows move a pointer.
+- Input: the D-pad moves the pointer (+ hover events); OK sends a **finger tap**. Hand-built mouse button events were
+  tested first and are ignored by the WebView (the login button did nothing), taps work. Pushing the pointer against the
+  top/bottom edge sends mouse-wheel events. Media keys post to a `<video>` or to the Kodik iframe through its
+  `kodik_player_api` postMessage (play/pause/seek), tracking state from the `kodik_player_*` messages it sends.
+- Fullscreen: `WebChromeClient.onShowCustomView`; Back leaves it.
+- Layout is left at the TV's natural density (1080p at 320 dpi = 960 CSS px: big text, readable from a couch). Forcing
+  a 1280px viewport through the meta tag was tried: the site rewrites that tag while hydrating, so it didn't stick.
+- `SiteFilter.kt` answers some requests itself: our CSS + Manrope from assets (served under `animeon.cc/__tv/`),
+  blocked ad/tracker hosts, and posters from the two flaky Russian CDNs via wsrv.nl (same logic as the desktop app).
+  `assets/tv-site.css` mirrors `HIDDEN_BLOCKS`/`HERO_FIT_CSS` in `src/main/main.ts`: keep the two in sync.
+- Debug builds enable WebView remote debugging. `tv/ci/drive.mjs` uses it plus `adb input keyevent` to play the part
+  of a person with a remote; `.github/workflows/tv-test.yml` runs it on an emulator and saves screenshots.
+- Emulator findings: 1080p software rendering overloads the CI runner (ANR from CPU starvation, not an app bug), so the
+  test uses the 720p profile. Verified there: page + fonts + hidden blocks, pointer to the login button and OK (dialog
+  opens), edge scrolling, opening a Kodik player by pointer, play/pause key, HTML fullscreen and Back.
+- Signing: `TV_KEYSTORE_*` secrets (a key kept at `C:\Users\reyjen\animeon-tv-signing` on the author's PC). Without
+  them (forks) the debug key is used. Losing the key means users must uninstall before installing a newer APK.
+- No self-update (Android needs the "install unknown apps" permission and a confirmation for that). Not tested on real
+  hardware, and old TVs with an outdated WebView may render the site badly.

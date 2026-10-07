@@ -108,15 +108,51 @@ right-click → **Open**, or on macOS 15+ via **System Settings → Privacy & Se
 xattr -dr com.apple.quarantine "/Applications/AnimeOn Desktop.app"
 ```
 
+## Android TV
+
+The same site as an Android app that you drive with the TV remote (`tv/`, built by the same release workflow as
+`AnimeOnTV-<version>.apk`). Needs Android 7+ and an up-to-date **Android System WebView** (the site uses modern CSS;
+Android TV updates it through the Play Store).
+
+**Install** (no Google account or developer mode needed):
+
+1. Download `AnimeOnTV-<version>.apk` from the [latest release](https://github.com/sevcenkoa864-oss/AnimeOn-desktop/releases/latest).
+2. Get it onto the TV: with the free **Downloader** app (open the release page in its browser and pick the APK), or on a
+   USB stick with a file manager app, or with `adb connect <tv-ip>` and `adb install AnimeOnTV-<version>.apk`.
+3. The first time, the TV asks to allow installing apps from that app ("unknown sources"): allow it.
+
+It appears as **AnimeOn Desktop** in the apps row. Later versions install over the old one and keep your login (the
+APK is always signed with the same key).
+
+**Remote control.** The site is built for a mouse, so the arrow keys move an on-screen pointer:
+
+| Remote                                     | Action                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Arrows                                     | Move the pointer (hold to speed up). Push it against the top or bottom edge to scroll |
+| OK / Enter                                 | Click (taps a text field to open the on-screen keyboard)                              |
+| Back                                       | Back; leaves fullscreen video; press twice on the first page to exit                  |
+| Play/Pause, Play, Pause                    | Play or pause the video                                                               |
+| Fast-forward / Rewind (or Next / Previous) | Skip 10 seconds forward / back                                                        |
+| Channel up/down, Page up/down              | Scroll the page                                                                       |
+| Menu                                       | Reload                                                                                |
+
+It has the same ad/tracker blocking, poster proxy, hidden promo blocks and Manrope font as the desktop app, plus the
+"No connection" screen with automatic reload.
+
+Limits: **Google sign-in doesn't work** on a TV (Google refuses embedded browsers): log in with email or Telegram.
+There is no auto-update on the TV: install the newer APK by hand. Tested on an Android 14 TV emulator (1080p/720p)
+with scripted remote presses (`tv/ci/`), not on a real TV yet.
+
 ## Project layout
 
 ```
 src/main/       main process: window, tray, navigation & popup policy, settings, ad blocker
 src/preload/    preload for the app's own local pages only (the site gets no preload)
 src/renderer/   title bar / splash / offline page, settings page
+tv/             Android TV app (Kotlin WebView), emulator test scripts in tv/ci
 scripts/        icon generator (downloads the site logo), static file copy
 assets/         generated icons (git-ignored)
-.github/        CI workflow that builds the Windows and macOS installers
+.github/        CI workflows: build Windows + macOS + Android TV, TV emulator test
 NOTES.md        site research and the reasoning behind the allowlists
 ```
 
