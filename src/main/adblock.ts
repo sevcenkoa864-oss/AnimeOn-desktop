@@ -2,9 +2,11 @@ import { ElectronBlocker } from '@ghostery/adblocker-electron';
 import { app, type Session } from 'electron';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { imageRedirect } from './imageproxy.js';
 
 const CACHE_MAX_AGE = 7 * 24 * 3600 * 1000;
 let blocker: Promise<ElectronBlocker> | undefined;
+let active: ElectronBlocker | undefined; // the loaded engine, for the synchronous request hook
 let appliedFilters: string[] = [];
 
 /** A per-domain exception: never block requests to the host, nor anything a page/frame on that host loads. */
@@ -30,22 +32,35 @@ function setExceptions(b: ElectronBlocker, hosts: string[]): void {
   appliedFilters = next;
 }
 
+/**
+ * Electron allows a single onBeforeRequest listener per session. Ghostery installs its own when blocking is
+ * enabled and clears it when disabled, so after every change we install one combined listener: image
+ * redirects for blocked hosts (see imageproxy.ts) first, then the ad blocker.
+ */
+function installRequestHandler(ses: Session): void {
+  ses.webRequest.onBeforeRequest({ urls: ['<all_urls>'] }, (details, callback) => {
+    const redirectURL = imageRedirect(details.url, details.resourceType);
+    if (redirectURL) callback({ redirectURL });
+    else if (active?.isBlockingEnabled(ses)) active.onBeforeRequest(details, callback);
+    else callback({});
+  });
+}
+
 /** Turns blocking on/off for a session. Never throws: a failed list download just leaves blocking off. */
 export async function setAdblock(ses: Session, enabled: boolean, exceptions: string[]): Promise<void> {
   try {
     if (!enabled) {
-      if (blocker) {
-        const b = await blocker;
-        if (b.isBlockingEnabled(ses)) b.disableBlockingInSession(ses);
-      }
+      if (active?.isBlockingEnabled(ses)) active.disableBlockingInSession(ses);
       return;
     }
     blocker ??= load();
-    const b = await blocker;
-    setExceptions(b, exceptions);
-    if (!b.isBlockingEnabled(ses)) b.enableBlockingInSession(ses);
+    active = await blocker;
+    setExceptions(active, exceptions);
+    if (!active.isBlockingEnabled(ses)) active.enableBlockingInSession(ses);
   } catch (err) {
     blocker = undefined; // retry the download next time
     console.error('[adblock] unavailable:', err);
+  } finally {
+    installRequestHandler(ses);
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "animeon-desktop",
   "productName": "AnimeOn Desktop (Unofficial)",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Unofficial desktop client for animeon.cc",
   "author": "sevcenkoa864",
   "license": "MIT",
@@ -13,7 +13,7 @@
     "dev": "npm run icons && npm run build && electron . --dev",
     "start": "electron .",
     "lint": "eslint . && prettier --check .",
-    "test": "npm run build && node --test dist/main/urls.test.js",
+    "test": "npm run build && node --test \"dist/main/*.test.js\"",
     "format": "prettier --write .",
     "icons": "node scripts/make-icons.mjs",
     "dist": "npm run icons && npm run build && electron-builder"

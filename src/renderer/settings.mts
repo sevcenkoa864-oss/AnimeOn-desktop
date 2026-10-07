@@ -34,8 +34,19 @@ exceptions.addEventListener('change', () => {
 document.getElementById('clear')!.addEventListener('click', () => void settingsApi.clearData());
 document.getElementById('relaunch')!.addEventListener('click', () => void settingsApi.relaunch());
 
-settingsApi.onSettingsChanged(fill);
-void settingsApi.getSettings().then(({ settings, version }) => {
+function showBlockedHosts(hosts: string[]): void {
+  document.getElementById('blocked-hosts')!.textContent = hosts.length
+    ? `Unreachable from here: ${hosts.map((h) => h.split('.').slice(-2).join('.')).join(', ')}`
+    : 'All poster servers are reachable from here.';
+}
+
+// The background network check reports through settings:changed too, so re-read the host list then.
+settingsApi.onSettingsChanged((s) => {
+  fill(s);
+  void settingsApi.getSettings().then(({ blockedImageHosts }) => showBlockedHosts(blockedImageHosts));
+});
+void settingsApi.getSettings().then(({ settings, version, blockedImageHosts }) => {
   document.getElementById('version')!.textContent = `AnimeOn Desktop (Unofficial) ${version}`;
   fill(settings);
+  showBlockedHosts(blockedImageHosts);
 });

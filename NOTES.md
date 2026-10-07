@@ -109,3 +109,29 @@ Checked via the Chrome DevTools Protocol and the main-process inspector (no scre
   ad-hoc signing fails library validation on the Electron framework. Not notarized (needs an Apple Developer account).
 - Can't be built or run on Windows. The layout was checked by switching the local pages to `data-platform="darwin"`.
   Native behaviour (traffic-light position, menu, tray, Gatekeeper) has not been verified on a real Mac.
+
+## Blocked poster servers (image proxy)
+
+Checked from a Ukrainian connection without VPN on 2026-10-07:
+
+| Host                                                                    | Serves                                    | Result                                                           |
+| ----------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------- |
+| `ab18cf62-…selcdn.net` (Selectel, CNAME `trbcdn.net`)                   | most posters                              | **intermittent**: requests hang ~10 s (no DNS answer), then work |
+| `st.kp.yandex.net` (Kinopoisk)                                          | some images                               | **blocked** (Ukraine blocks Russian services)                    |
+| `shikimori.io/.one`, `*.animeon.cloud`, `img.youtube.com`, `animeon.cc` | posters, own player media, trailers, site | OK                                                               |
+| `*.solodcdn.com`, `kodikplayer.com`, `kodikonline.com`                  | video                                     | OK                                                               |
+| `animeon.su`                                                            | listed in the site's CSP only             | refused (looks like an old domain, nothing references it)        |
+
+What the app does (`src/main/imageproxy.ts`):
+
+- Image requests to a candidate host that is marked blocked get redirected to `https://wsrv.nl/?url=…`. wsrv.nl is
+  a free, open-source image proxy/cache hosted outside Russia/Ukraine. It answered in ~0.6 s for both hosts.
+- A host gets marked by a startup probe (HEAD, 5 s timeout) **or** by any real failed image load. Marks persist
+  (`blockedImageHosts` in config.json), because an unstable host would otherwise slip through a probe that happens to
+  catch it working. After a new mark, already-broken posters on the page are re-requested in place (no reload).
+- Only image requests to those two hosts go through wsrv.nl, and only the public poster URL is sent (no cookies).
+  Settings → Network → "Load blocked images via proxy" turns it off.
+- Electron allows one `onBeforeRequest` listener per session, so it is combined with the ad blocker's listener in
+  `adblock.ts` and reinstalled whenever the ad blocker is toggled.
+- Verified: with selcdn made unresolvable (`--host-resolver-rules`) and a fresh profile, all 20 catalog posters
+  loaded through wsrv.nl.

@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setAdblock } from './adblock.js';
+import { blockedHosts, configureImageProxy, noteFailure, probeBlockedHosts } from './imageproxy.js';
 import { clampZoom, getSettings, sanitizeSetting, store, type Settings } from './store.js';
 import { chromeUserAgent, HOME, isAppUrl, isAuthFlowUrl, isAuthPopupUrl, isWebUrl } from './urls.js';
 
@@ -132,8 +133,42 @@ async function start(): Promise<void> {
   createTray();
   syncLoginItem();
   // With a cached engine this is instant; on first run it downloads the lists while the splash is up.
+  // Start from the last known set of blocked image hosts, then re-check this network in the background.
+  configureImageProxy(store.get('imageProxy'), store.get('blockedImageHosts'));
+  siteSession.webRequest.onErrorOccurred((d) => {
+    if (noteFailure(d.url, d.resourceType, d.error)) onImageHostsChanged();
+  });
   await setAdblock(siteSession, store.get('adblock'), store.get('adblockExceptions'));
   view?.webContents.loadURL(START_URL).catch(() => {}); // failures are handled in did-fail-load
+  void refreshBlockedImageHosts();
+}
+
+async function refreshBlockedImageHosts(): Promise<void> {
+  const before = store.get('blockedImageHosts');
+  const found = await probeBlockedHosts(siteSession);
+  const now = [...new Set([...blockedHosts(), ...found])]; // marks are sticky, see imageproxy.ts
+  configureImageProxy(store.get('imageProxy'), now);
+  if (now.some((h) => !before.includes(h))) onImageHostsChanged();
+}
+
+// Re-requests the posters that already failed, so they come through the proxy without reloading the page
+// (which could interrupt a video). Clearing src first makes Chromium fetch again instead of reusing the error.
+const RETRY_BROKEN_IMAGES = `for (const img of document.images) {
+  if (!img.complete || img.naturalWidth > 0 || !img.currentSrc) continue;
+  const { src, srcset } = img;
+  img.srcset = ''; img.src = '';
+  img.srcset = srcset; img.src = src;
+}`;
+let retryTimer: NodeJS.Timeout | undefined;
+
+function onImageHostsChanged(): void {
+  store.set('blockedImageHosts', blockedHosts());
+  settingsWin?.webContents.send('settings:changed', getSettings());
+  if (!store.get('imageProxy')) return;
+  clearTimeout(retryTimer); // a burst of failures → one retry
+  retryTimer = setTimeout(() => {
+    view?.webContents.executeJavaScript(RETRY_BROKEN_IMAGES).catch(() => {});
+  }, 1500);
 }
 
 // ---------- security ----------
@@ -557,6 +592,10 @@ async function applySetting<K extends keyof Settings>(key: K, raw: unknown): Pro
     case 'defaultZoom':
       setZoom(value as number);
       break;
+    case 'imageProxy':
+      configureImageProxy(value as boolean, store.get('blockedImageHosts'));
+      if (store.get('blockedImageHosts').length) reload();
+      break;
   }
   settingsWin?.webContents.send('settings:changed', getSettings());
   return getSettings();
@@ -613,7 +652,11 @@ function registerIpc(): void {
     });
   };
   handle('shell:state', () => shellState);
-  handle('settings:get', () => ({ settings: getSettings(), version: app.getVersion() }));
+  handle('settings:get', () => ({
+    settings: getSettings(),
+    version: app.getVersion(),
+    blockedImageHosts: store.get('blockedImageHosts'),
+  }));
   handle('settings:set', (key, value) => applySetting(key as keyof Settings, value));
   handle('data:clear', clearData);
   handle('app:relaunch', () => {

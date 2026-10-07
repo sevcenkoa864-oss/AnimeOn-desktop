@@ -53,6 +53,7 @@ Open from the tray or with Ctrl+,:
 - **Default zoom**
 - **Hardware acceleration** (needs a restart)
 - **Ad blocker** + **exceptions**
+- **Load blocked images via proxy** (see below)
 - **Clear cache and data** (signs you out)
 
 ## Development
@@ -119,6 +120,13 @@ assets/         generated icons (git-ignored)
 .github/        CI workflow that builds the Windows and macOS installers
 NOTES.md        site research and the reasoning behind the allowlists
 ```
+
+## Posters not loading? (Ukraine and other regions)
+
+Most posters come from Russian CDNs (Selectel, Kinopoisk) that are blocked or unstable in some countries, e.g. in
+Ukraine. The app notices when one of them fails and loads those images through [wsrv.nl](https://wsrv.nl), a free
+open-source image proxy, instead. Nothing to set up. wsrv.nl only sees the public poster URLs. Turn it off in
+Settings → Network if you don't want that. Video and everything else still connect directly.
 
 ## Known limitations
 

@@ -11,7 +11,8 @@ const api = {
   },
   retry: (): void => ipcRenderer.send('shell:retry'),
 
-  getSettings: (): Promise<{ settings: Settings; version: string }> => ipcRenderer.invoke('settings:get'),
+  getSettings: (): Promise<{ settings: Settings; version: string; blockedImageHosts: string[] }> =>
+    ipcRenderer.invoke('settings:get'),
   onSettingsChanged: (cb: (s: Settings) => void): void => {
     ipcRenderer.on('settings:changed', (_e, s: Settings) => cb(s));
   },

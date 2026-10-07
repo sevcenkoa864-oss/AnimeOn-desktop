@@ -11,11 +11,14 @@ export interface Settings {
   adblockExceptions: string[];
   hardwareAcceleration: boolean;
   defaultZoom: number;
+  imageProxy: boolean;
 }
 
 interface Schema extends Settings {
   zoom: number;
   window: { bounds?: Rectangle; maximized: boolean };
+  /** Last probe result of imageproxy.ts, used right away on the next launch. */
+  blockedImageHosts: string[];
 }
 
 export const settingDefaults: Settings = {
@@ -26,10 +29,11 @@ export const settingDefaults: Settings = {
   adblockExceptions: [],
   hardwareAcceleration: true,
   defaultZoom: 1,
+  imageProxy: true,
 };
 
 export const store = new Store<Schema>({
-  defaults: { ...settingDefaults, zoom: 1, window: { maximized: false } },
+  defaults: { ...settingDefaults, zoom: 1, window: { maximized: false }, blockedImageHosts: [] },
 });
 
 export const ZOOM_MIN = 0.5;
