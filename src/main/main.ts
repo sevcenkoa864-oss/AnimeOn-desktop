@@ -14,6 +14,7 @@ import {
   type BrowserWindowConstructorOptions,
   type IpcMainEvent,
   type IpcMainInvokeEvent,
+  type NativeImage,
   type Rectangle,
   type Session,
   type WebContents,
@@ -23,7 +24,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setAdblock } from './adblock.js';
 import { blockedHosts, configureImageProxy, noteFailure, probeBlockedHosts } from './imageproxy.js';
+import { loadSiteIcon } from './siteicon.js';
 import { clampZoom, getSettings, sanitizeSetting, store, type Settings } from './store.js';
+import { checkForUpdates, installUpdate, openReleasePage, startUpdater, updateState } from './updater.js';
 import { chromeUserAgent, HOME, isAppUrl, isAuthFlowUrl, isAuthPopupUrl, isWebUrl } from './urls.js';
 
 const APP_NAME = 'AnimeOn Desktop (Unofficial)';
@@ -47,9 +50,14 @@ const WINDOW_CHROME: BrowserWindowConstructorOptions = isMac
 // Dev-only override, handy for testing the offline page (e.g. ANIMEON_URL=https://animeon.invalid/).
 const START_URL = (isDev && process.env.ANIMEON_URL) || HOME;
 
-// Hidden promo cards (by their stable semantic class names): "Путь к манге" (Premium manga promo) and
-// "Боевой пропуск". The whole <section> goes, so no empty gap is left behind.
-const HIDDEN_BLOCKS = ['.pm-sheet', '.bpp-shell'];
+// Hidden parts of the site, matched by stable markers rather than Tailwind utility classes. Whole sections go,
+// so no empty gap is left behind.
+const HIDDEN_BLOCKS = [
+  'section:has(> .pm-sheet)', // "Путь к манге" (Premium manga promo)
+  'section:has(> .bpp-shell)', // "Боевой пропуск"
+  'main section:has([class*="#2AABEE"])', // "Подписывайся на наш Telegram!" (Telegram-blue background)
+  'footer', // site footer (one per page)
+];
 
 // Home hero slider: the site sizes the title by window width only, inside a slider of fixed height with the text
 // bottom-aligned, so in wide-but-short windows (even a maximized 1080p window) long titles overflow under the
@@ -82,13 +90,13 @@ function siteCss(): string {
       (_, file: string) => `url(data:font/woff2;base64,${readFileSync(path.join(dir, file)).toString('base64')})`,
     ) +
     '*, *::before, *::after { font-family: Manrope, system-ui, sans-serif !important; }' +
-    HIDDEN_BLOCKS.map((c) => `section:has(> ${c}), ${c}`).join(', ') +
+    HIDDEN_BLOCKS.join(', ') +
     ' { display: none !important; }' +
     HERO_FIT_CSS;
   return siteCssText;
 }
 
-export type ShellState = { kind: 'loading' | 'ready' | 'error'; title: string; message?: string };
+export type ShellState = { kind: 'loading' | 'ready' | 'error'; title: string; message?: string; logo?: string };
 
 let win: BrowserWindow | undefined;
 let view: WebContentsView | undefined;
@@ -102,6 +110,7 @@ let loadFailed = false;
 let lastUrl = START_URL;
 let shellState: ShellState = { kind: 'loading', title: 'AnimeOn' };
 let sleepBlocker = -1;
+let siteIcon: NativeImage | undefined; // the site's own icon, see siteicon.ts
 
 // ---------- pre-ready setup ----------
 
@@ -132,6 +141,8 @@ async function start(): Promise<void> {
   createWindow();
   createTray();
   syncLoginItem();
+  void loadSiteIcon(siteSession).then(applySiteIcon);
+  startUpdater(appIcon);
   // With a cached engine this is instant; on first run it downloads the lists while the splash is up.
   // Start from the last known set of blocked image hosts, then re-check this network in the background.
   configureImageProxy(store.get('imageProxy'), store.get('blockedImageHosts'));
@@ -225,7 +236,7 @@ function createWindow(): void {
     minHeight: 480,
     show: false,
     title: APP_NAME,
-    icon: ICON,
+    icon: appIcon(),
     backgroundColor: BG,
     ...WINDOW_CHROME,
     webPreferences: { preload: PRELOAD, sandbox: true, contextIsolation: true, nodeIntegration: false },
@@ -282,9 +293,21 @@ function layout(): void {
   view.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) });
 }
 
+const appIcon = (): NativeImage | string => siteIcon ?? ICON;
+
+/** Shows the site's icon on the running app: window/taskbar, tray (Windows), Dock (macOS) and the splash. */
+function applySiteIcon(img: NativeImage | undefined): void {
+  if (!img) return;
+  siteIcon = img;
+  for (const w of BrowserWindow.getAllWindows()) w.setIcon(img);
+  if (isMac) app.dock?.setIcon(img);
+  else tray?.setImage(img.resize({ width: 32, height: 32, quality: 'best' }));
+  setShellState({ logo: img.resize({ width: 224, quality: 'best' }).toDataURL() });
+}
+
 function setShellState(patch: Partial<ShellState>): void {
   shellState = { ...shellState, ...patch };
-  if (patch.kind !== 'error') delete shellState.message;
+  if (patch.kind && patch.kind !== 'error') delete shellState.message;
   win?.webContents.send('shell:state', shellState);
   view?.setVisible(shellState.kind === 'ready');
 }
@@ -378,7 +401,7 @@ function authPopupOptions(): BrowserWindowConstructorOptions {
     parent: win,
     backgroundColor: '#ffffff',
     autoHideMenuBar: true,
-    icon: ICON,
+    icon: appIcon(),
     webPreferences: { session: siteSession, sandbox: true, contextIsolation: true, nodeIntegration: false },
   };
 }
@@ -489,6 +512,13 @@ function createTray(): void {
   }
 }
 
+function updateMenuItems(): Electron.MenuItemConstructorOptions[] {
+  const u = updateState();
+  if (u.kind === 'ready') return [{ label: `Restart to Update (${u.version})`, click: installUpdate }];
+  if (u.kind === 'available') return [{ label: `Download Update (${u.version})…`, click: openReleasePage }];
+  return [{ label: 'Check for Updates…', click: () => void checkForUpdates(true), enabled: app.isPackaged }];
+}
+
 function trayMenu(): Menu {
   const s = getSettings();
   return Menu.buildFromTemplate([
@@ -507,6 +537,7 @@ function trayMenu(): Menu {
       checked: s.startWithWindows,
       click: (m) => void applySetting('startWithWindows', m.checked),
     },
+    ...updateMenuItems(),
     { label: 'Settings…', click: openSettings },
     { label: 'About', click: showAbout },
     { type: 'separator' },
@@ -526,7 +557,7 @@ function showAbout(): void {
       'Unofficial client, not affiliated with animeon.cc.',
       'All content belongs to its respective owners.',
     ].join('\n'),
-    icon: nativeImage.createFromPath(ICON),
+    icon: siteIcon ?? nativeImage.createFromPath(ICON),
   };
   void (win?.isVisible() ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts));
 }
@@ -537,6 +568,7 @@ function macMenu(): Menu {
       label: app.name,
       submenu: [
         { label: 'About AnimeOn Desktop', click: showAbout },
+        ...updateMenuItems(),
         { type: 'separator' },
         { label: 'Settings…', accelerator: 'Cmd+,', click: openSettings },
         { type: 'separator' },
@@ -612,7 +644,7 @@ function openSettings(): void {
     fullscreenable: false,
     show: false,
     title: 'Settings',
-    icon: ICON,
+    icon: appIcon(),
     backgroundColor: BG,
     ...WINDOW_CHROME,
     webPreferences: { preload: PRELOAD, sandbox: true, contextIsolation: true, nodeIntegration: false },

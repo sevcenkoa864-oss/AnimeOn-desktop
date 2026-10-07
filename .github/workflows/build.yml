@@ -31,9 +31,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: AnimeOnDesktop-${{ runner.os }}
+          # latest*.yml + .blockmap files let installed apps find and (differentially) download updates
           path: |
             release/*.exe
             release/*.dmg
+            release/*.blockmap
+            release/latest*.yml
           if-no-files-found: error
 
   release:

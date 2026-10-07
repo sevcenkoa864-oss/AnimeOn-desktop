@@ -7,10 +7,9 @@ while you watch. Runs on Windows and macOS.
 
 > **Unofficial client, not affiliated with animeon.cc.** All content and trademarks belong to their owners.
 >
-> **Logo:** the app icon is animeon.cc's own app icon (the one its web manifest offers for "install as app"). It is
-> **not stored in this repository**: `npm run icons` downloads it at build time into the git-ignored `assets/` folder,
-> like a browser does when installing the site. If the download fails, an original play-button icon is used. The logo
-> belongs to animeon.cc, so keep your builds for personal use and don't publish them.
+> **Logo:** the installers and the exe carry only the app's own original icon. While running, the app shows
+> animeon.cc's own icon (window, taskbar, tray, splash), downloaded from the site the way a browser shows a favicon.
+> Nothing from the site's logo is stored in this repository or in the published builds.
 
 ## Features
 
@@ -120,6 +119,21 @@ assets/         generated icons (git-ignored)
 .github/        CI workflow that builds the Windows and macOS installers
 NOTES.md        site research and the reasoning behind the allowlists
 ```
+
+## Updates
+
+New versions are published as [GitHub Releases](https://github.com/sevcenkoa864-oss/AnimeOn-desktop/releases).
+
+- **Windows (installed with the Setup exe):** the app checks for updates at startup and every 4 hours, downloads
+  them in the background (only the changed parts) and installs them when you quit. To update right away, use the tray
+  menu item **Restart to Update**. If you installed into `C:\Program Files`, Windows asks for admin rights on each
+  update. Installing into the default per-user folder avoids that.
+- **macOS and the portable exe** can't replace themselves (macOS only allows that for apps signed with a paid Apple
+  certificate). They show a notification when a new version is out. Click it, or use **Download Update…** in the menu.
+- **Check for Updates…** in the tray (and the macOS app menu) checks right away.
+
+To release a version: bump `version` in `package.json`, then push a tag like `v1.0.3`. The workflow builds both
+platforms and publishes the release with the files the updater needs (`latest*.yml`, `*.blockmap`).
 
 ## Posters not loading? (Ukraine and other regions)
 

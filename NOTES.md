@@ -90,13 +90,12 @@ Checked via the Chrome DevTools Protocol and the main-process inspector (no scre
 
 ## Logo
 
-- At the user's request the app uses animeon.cc's own app icon (`/favicon-512.png`, identical to
-  `/_next/static/media/logo.fd1904f7.png`, a cat-unicorn mark without text). It is the icon the site's web manifest
-  offers for installing it as an app.
-- `scripts/make-icons.mjs` downloads it at build time into `assets/` (git-ignored) and derives every icon from it.
-  Nothing from the logo is committed. If the download fails, the original play-button icon is used instead.
-- Windows/macOS icon: the mark on a dark rounded tile like the site's header. macOS menu bar: a template made of the
-  logo's dark line-art. Title bar and splash: the transparent mark, no text.
+- The published installers/exe use only the app's original play-button icon (`scripts/make-icons.mjs`).
+- At runtime `src/main/siteicon.ts` downloads animeon.cc's own app icon (`/favicon-512.png`, the icon its web
+  manifest offers for "install as app"), caches it in the profile (`site-icon.png`) and shows it on the window,
+  taskbar, tray (Windows), Dock (macOS) and splash, like a browser shows a favicon. The logo is never committed or
+  bundled. The repository is public, so this keeps the site's artwork out of what is distributed.
+- Title bar: no logo or text (user's choice).
 
 ## macOS
 
@@ -135,3 +134,14 @@ What the app does (`src/main/imageproxy.ts`):
   `adblock.ts` and reinstalled whenever the ad blocker is toggled.
 - Verified: with selcdn made unresolvable (`--host-resolver-rules`) and a fresh profile, all 20 catalog posters
   loaded through wsrv.nl.
+
+## Auto-update
+
+- `electron-updater` with the GitHub provider (`build.publish` in package.json → `app-update.yml` inside the app).
+  The repository is public, so no token is needed.
+- Windows NSIS installs: background download (differential via `.blockmap`), install on quit or via the tray item
+  **Restart to Update** (`quitAndInstall(true, true)`: silent, relaunch). Checks at startup and every 4 h.
+- macOS (only ad-hoc signed; Squirrel.Mac needs a Developer ID signature) and the portable exe can't self-update. They
+  read `releases/latest` from the GitHub API and show a notification linking to the release.
+- The release job uploads `latest*.yml` and `*.blockmap` next to the installers. Releases before v1.0.2 don't have
+  them and their apps have no updater: installing v1.0.2 by hand once is needed.

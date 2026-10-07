@@ -45,10 +45,6 @@
       [data-platform='darwin'] #bar {
         padding: 0 12px 0 80px; /* macOS traffic lights sit on the left */
       }
-      #bar img {
-        width: 20px;
-        height: 20px;
-      }
       main {
         position: absolute;
         inset: var(--bar) 0 0 0;
@@ -149,7 +145,7 @@
     </style>
   </head>
   <body data-kind="loading">
-    <div id="bar"><img src="../../assets/logo.png" alt="" /></div>
+    <div id="bar"></div>
     <main>
       <section class="panel" id="loading" aria-live="polite">
         <img class="logo" src="../../assets/logo.png" alt="" />
