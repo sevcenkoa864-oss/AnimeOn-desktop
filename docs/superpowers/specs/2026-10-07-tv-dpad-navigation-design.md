@@ -87,14 +87,14 @@ Title pages and other deep routes skip step 4 so Back from a title goes straight
 The Kodik `<iframe>` (and any main-frame `<video>`, e.g. the site's own player) is a single focusable "player block"
 with the same focus ring. Keys while it is focused:
 
-| Key         | Action                                                       |
-| ----------- | ------------------------------------------------------------ |
-| OK          | play / pause (existing `__tv.cmd('toggle')`)                 |
-| Left, Right | seek -10 s / +10 s, hold repeats                             |
-| Up, Down    | leave the player block to the previous / next group          |
+| Key         | Action                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------ |
+| OK          | play / pause (existing `__tv.cmd('toggle')`)                                                                 |
+| Left, Right | seek -10 s / +10 s, hold repeats                                                                             |
+| Up, Down    | leave the player block to the previous / next group                                                          |
 | Menu        | toggle fullscreen (`iframe.requestFullscreen()` from the key gesture); outside the player Menu still reloads |
-| Back        | exit fullscreen if on, otherwise step 2-5 above              |
-| media keys  | unchanged                                                    |
+| Back        | exit fullscreen if on, otherwise step 2-5 above                                                              |
+| media keys  | unchanged                                                                                                    |
 
 Not reachable and documented as a known limitation: Kodik's quality and voice-over menus inside the iframe. The
 site's own episode and voice selectors are page elements and stay reachable. The site's "AnimeOn 2.0" player needs a
@@ -106,8 +106,8 @@ Applied only on `/anime/*` through a route attribute that `tv-nav.js` keeps on `
 
 - A fixed full-screen backdrop `div#tv-backdrop` (`z-index: -1`, `pointer-events: none`) uses the title's poster
   (`meta[property="og:image"]`, falling back to the left-column poster) as `background-size: cover;
-  background-position: center 25%`, with a dark overlay: `linear-gradient(90deg, #0a0a0a 28%, rgba(10,10,10,.65) 60%,
-  rgba(10,10,10,.25))` over `linear-gradient(0deg, #0a0a0a, transparent 45%)`. The source is a low-resolution portrait
+background-position: center 25%`, with a dark overlay: `linear-gradient(90deg, #0a0a0a 28%, rgba(10,10,10,.65) 60%,
+rgba(10,10,10,.25))` over `linear-gradient(0deg, #0a0a0a, transparent 45%)`. The source is a low-resolution portrait
   image; the overlay hides the softness. If the site exposes a larger or landscape still, using it is an
   implementation-time improvement, not a requirement.
 - The first content block gets `min-height: 100vh` so the first screen is the hero: large title, meta chips,

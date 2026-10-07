@@ -14,9 +14,7 @@ import android.os.Looper
 import android.os.Message
 import android.os.SystemClock
 import android.util.Log
-import android.view.InputDevice
 import android.view.KeyEvent
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -36,14 +34,12 @@ import android.widget.Toast
 
 /**
  * AnimeOn Desktop (Unofficial) for Android TV: the animeon.cc website in a full-screen WebView, driven with the
- * remote. The D-pad moves an on-screen mouse pointer, OK clicks, Back goes back (or leaves fullscreen), the media
- * keys control the player. The site is built for mouse and touch, so a pointer works everywhere, including inside the
- * embedded video players, where focus-based navigation can't reach.
+ * remote. There is no pointer: the D-pad moves real focus between the page's links and buttons (assets/tv-nav.js),
+ * OK activates, Back closes things and then goes back, the media keys and OK/arrows on the player control the video.
  */
 class MainActivity : Activity() {
     private lateinit var root: FrameLayout
     private lateinit var web: WebView
-    private lateinit var cursor: CursorView
     private lateinit var splash: View
     private lateinit var filter: SiteFilter
     private val ui = Handler(Looper.getMainLooper())
@@ -53,11 +49,8 @@ class MainActivity : Activity() {
     private var offlineFor: String? = null // the URL that failed while the offline page is shown
     private var lastBackMs = 0L
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val navJs: String by lazy { assets.open("tv-nav.js").bufferedReader().use { it.readText() } }
 
-    /** Pointer events go to the fullscreen video when there is one, otherwise to the page. */
-    private val target: View get() = fullscreenView ?: web
-
-    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -66,15 +59,10 @@ class MainActivity : Activity() {
         root = FrameLayout(this).apply { setBackgroundColor(BG) }
         web = createWebView()
         root.addView(web, match())
-        cursor = CursorView(this)
-        root.addView(cursor, match())
         splash = buildSplash()
         root.addView(splash, match())
         setContentView(root)
-        root.post { // start in the middle of the screen
-            cursor.cx = root.width / 2f
-            cursor.cy = root.height / 2f
-        }
+        web.requestFocus()
 
         watchNetwork()
         web.loadUrl(HOME)
@@ -187,7 +175,6 @@ class MainActivity : Activity() {
             fullscreenCallback = callback
             view.setBackgroundColor(Color.BLACK)
             root.addView(view, match())
-            cursor.bringToFront()
         }
 
         override fun onHideCustomView() = leaveFullscreen()
@@ -206,7 +193,10 @@ class MainActivity : Activity() {
     private fun isSite(uri: Uri): Boolean =
         uri.scheme == "https" && (uri.host == SiteFilter.SITE_HOST || uri.host?.endsWith(".${SiteFilter.SITE_HOST}") == true)
 
-    private fun inject() = web.evaluateJavascript(PAGE_JS, null)
+    private fun inject() {
+        web.evaluateJavascript(PAGE_JS, null)
+        web.evaluateJavascript("!!window.__tvnav") { has -> if (has != "true") web.evaluateJavascript(navJs, null) }
+    }
 
     private fun showOffline(failedUrl: String) {
         offlineFor = failedUrl
@@ -244,29 +234,36 @@ class MainActivity : Activity() {
                 if (e.action == KeyEvent.ACTION_UP) goBack()
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (down) moveCursor(e.keyCode, e.repeatCount)
-                return true
-            }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A -> {
-                if (first) click()
-                return true
-            }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { if (first) player("toggle"); return true }
             KeyEvent.KEYCODE_MEDIA_PLAY -> { if (first) player("play"); return true }
             KeyEvent.KEYCODE_MEDIA_PAUSE -> { if (first) player("pause"); return true }
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_NEXT -> { if (down) player("seek", SEEK_SECONDS); return true }
             KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { if (down) player("seek", -SEEK_SECONDS); return true }
-            KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { if (down) scroll(-1, 3f); return true }
-            KeyEvent.KEYCODE_PAGE_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { if (down) scroll(1, 3f); return true }
-            KeyEvent.KEYCODE_MENU -> { if (first) web.reload(); return true }
+            KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { if (down) scrollPage(-1); return true }
+            KeyEvent.KEYCODE_PAGE_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { if (down) scrollPage(1); return true }
+            KeyEvent.KEYCODE_MENU -> { if (first) menu(); return true }
         }
-        return super.dispatchKeyEvent(e) // letters etc. from a keyboard remote go to the focused text field
+        if (fullscreenView != null) { // the page can't see keys while the video is fullscreen: drive it from here
+            when (e.keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { if (first) player("toggle"); return true }
+                KeyEvent.KEYCODE_DPAD_LEFT -> { if (down) player("seek", -SEEK_SECONDS); return true }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> { if (down) player("seek", SEEK_SECONDS); return true }
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> return true
+            }
+        }
+        return super.dispatchKeyEvent(e) // arrows, OK and typing go to the page, where tv-nav.js moves the focus
     }
 
+    /** Fullscreen video first, then whatever the page wants to close or step out of, then page history. */
     private fun goBack() {
+        if (fullscreenView != null) return leaveFullscreen()
+        web.evaluateJavascript("window.__tvnav ? window.__tvnav.back() : 'history'") { result ->
+            if (result?.contains("handled") != true) goBackInHistory()
+        }
+    }
+
+    private fun goBackInHistory() {
         when {
-            fullscreenView != null -> leaveFullscreen()
             web.canGoBack() -> web.goBack()
             SystemClock.uptimeMillis() - lastBackMs < 2000 -> finish()
             else -> {
@@ -276,80 +273,16 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun moveCursor(key: Int, repeat: Int) {
-        val d = resources.displayMetrics.density
-        val step = 9f * d * (1f + minOf(repeat, 40) * 0.2f) // holding a key speeds the pointer up
-        val edge = 12f * d
-        var x = cursor.cx
-        var y = cursor.cy
-        var scrollDir = 0
-        when (key) {
-            KeyEvent.KEYCODE_DPAD_LEFT -> x -= step
-            KeyEvent.KEYCODE_DPAD_RIGHT -> x += step
-            // pushing the pointer against the top or bottom edge scrolls the page, like a mouse wheel
-            KeyEvent.KEYCODE_DPAD_UP -> if (y <= edge) scrollDir = -1 else y -= step
-            KeyEvent.KEYCODE_DPAD_DOWN -> if (y >= root.height - edge) scrollDir = 1 else y += step
+    /** Menu: fullscreen for the focused player, leave it when already there, otherwise reload the page. */
+    private fun menu() {
+        if (fullscreenView != null) return leaveFullscreen()
+        web.evaluateJavascript("window.__tvnav ? window.__tvnav.menu() : false") { handled ->
+            if (handled != "true") web.reload()
         }
-        x = x.coerceIn(0f, root.width - 1f)
-        y = y.coerceIn(0f, root.height - 1f)
-        cursor.moveTo(x, y)
-        send(MotionEvent.ACTION_HOVER_MOVE, x, y)
-        if (scrollDir != 0) scroll(scrollDir, 1f)
     }
 
-    private fun click() {
-        val x = cursor.cx
-        val y = cursor.cy
-        val tgt = target
-        cursor.wake()
-        tap(MotionEvent.ACTION_DOWN, x, y)
-        ui.postDelayed({ if (target === tgt) tap(MotionEvent.ACTION_UP, x, y) }, 60)
-    }
-
-    /** One wheel tick (`ticks` of them) at the pointer; positive `dir` scrolls down. */
-    private fun scroll(dir: Int, ticks: Float) {
-        send(MotionEvent.ACTION_SCROLL, cursor.cx, cursor.cy, vscroll = -dir * ticks)
-    }
-
-    /** One half of a finger tap at (x, y). */
-    private fun tap(action: Int, x: Float, y: Float) {
-        val now = SystemClock.uptimeMillis()
-        val props = MotionEvent.PointerProperties().apply {
-            id = 0
-            toolType = MotionEvent.TOOL_TYPE_FINGER
-        }
-        val coords = MotionEvent.PointerCoords().apply {
-            this.x = x
-            this.y = y
-            pressure = if (action == MotionEvent.ACTION_UP) 0f else 1f
-            size = 1f
-        }
-        val event = MotionEvent.obtain(
-            now, now, action, 1, arrayOf(props), arrayOf(coords), 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0,
-        )
-        target.dispatchTouchEvent(event)
-        event.recycle()
-    }
-
-    /** A mouse event (hover, wheel), built the way a real mouse's events arrive. */
-    private fun send(action: Int, x: Float, y: Float, vscroll: Float = 0f) {
-        val now = SystemClock.uptimeMillis()
-        val props = MotionEvent.PointerProperties().apply {
-            id = 0
-            toolType = MotionEvent.TOOL_TYPE_MOUSE
-        }
-        val coords = MotionEvent.PointerCoords().apply {
-            this.x = x
-            this.y = y
-            pressure = 0f
-            size = 1f
-            if (vscroll != 0f) setAxisValue(MotionEvent.AXIS_VSCROLL, vscroll)
-        }
-        val event = MotionEvent.obtain(
-            now, now, action, 1, arrayOf(props), arrayOf(coords), 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0,
-        )
-        target.dispatchGenericMotionEvent(event)
-        event.recycle()
+    private fun scrollPage(dir: Int) {
+        web.evaluateJavascript("scrollBy({top: ${dir * 400}, behavior: 'instant'})", null)
     }
 
     /** Play, pause or seek the video: a <video> in the page, or a Kodik iframe through its postMessage API. */

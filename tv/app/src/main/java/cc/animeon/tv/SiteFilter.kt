@@ -45,6 +45,7 @@ class SiteFilter(context: Context) {
         if ('/' in name || name.contains("..")) return null
         val mime = when (name.substringAfterLast('.')) {
             "css" -> "text/css"
+            "js" -> "text/javascript"
             "woff2" -> "font/woff2"
             else -> return null
         }

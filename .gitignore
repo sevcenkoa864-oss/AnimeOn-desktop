@@ -10,3 +10,6 @@ tv/build/
 tv/app/build/
 tv/local.properties
 *.jks
+
+# TV layout check output
+/tv-shots/
