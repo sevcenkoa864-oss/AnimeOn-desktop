@@ -4,7 +4,7 @@ Maintainer notes for AnimeOn Desktop (Unofficial): how the project is put togeth
 what has and hasn't been verified, and the traps that cost time. `README.md` is for users, `NOTES.md` has the site
 research behind the allowlists and workarounds; this file is the entry point for working on the code.
 
-State at the time of writing: **v1.0.5** released (Windows, macOS, Android TV), `main` is clean and pushed.
+State at the time of writing: **v1.0.6** released (Windows, macOS, Android TV), `main` is clean and pushed.
 
 ## 1. What it is
 
