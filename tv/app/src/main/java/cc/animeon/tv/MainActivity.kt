@@ -66,6 +66,7 @@ class MainActivity : Activity() {
 
         watchNetwork()
         web.loadUrl(HOME)
+        ui.postDelayed({ Updater(this).checkSoon() }, UPDATE_CHECK_DELAY_MS) // after the page is up, not while it loads
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -328,6 +329,7 @@ class MainActivity : Activity() {
         const val HOME = "https://animeon.cc/"
         const val OFFLINE_URL = "https://animeon.cc/__tv/offline"
         const val SEEK_SECONDS = 10
+        const val UPDATE_CHECK_DELAY_MS = 20_000L
         val BG = Color.parseColor("#0A0A0A")
 
         /**

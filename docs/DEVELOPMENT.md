@@ -126,7 +126,13 @@ settings). `appId` is `cc.animeon.desktop.unofficial`; the installed exe is `Ani
   minSdk 24, JDK 17. `versionCode = major*1e6 + minor*1e3 + patch`, `-PversionName` from the tag.
 - Signing: CI signs `assembleRelease` with the key from the `TV_KEYSTORE_*` secrets (see §6). Without them (forks, local)
   the debug key is used. Installing over an existing copy only works with the same key.
-- No self-update on TV (Android needs "install unknown apps" + a user confirmation). Candidate feature.
+- Self-update (`Updater.kt`): 20 s after start (at most every 6 h) it reads `releases/latest` from the GitHub API; if the
+  tag is newer than the installed `versionName` it offers to install the `.apk` asset, downloads it to the cache and
+  commits it to a `PackageInstaller` session. The system then asks for "install unknown apps" (first time), shows the
+  Play Protect "unknown developer" warning (More details, then Install anyway) and confirms. Android refuses the install
+  unless the key matches, so only CI-signed releases can replace a CI-signed install. The first updater version has to be
+  installed by hand (v1.0.5 and older have no updater). To test the flow, build with `-PversionName=<older>` against the
+  latest release: it gets as far as the system installer (the final replace needs the release key).
 
 ## 5. Commands
 
@@ -236,7 +242,7 @@ logged-in account), and F11/Ctrl+Q from a physical keyboard.
 
 - Code signing (Windows certificate, Apple Developer ID) to remove SmartScreen/Gatekeeper warnings and enable
   macOS self-update.
-- TV: in-app update check that downloads the APK and opens the package installer; leaving fullscreen seems to
+- TV: leaving fullscreen seems to
   reset the page scroll; try on a real device; remote-friendly hint overlay for first launch.
 - Desktop: confirm the auto-update flow on the first release after one that contains the updater (v1.0.4 → next).
 - Move the shared CSS (hidden blocks, hero fix) into one file consumed by both desktop and TV.
