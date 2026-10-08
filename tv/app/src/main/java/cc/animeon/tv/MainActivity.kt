@@ -53,7 +53,6 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         filter = SiteFilter(this)
 
         root = FrameLayout(this).apply { setBackgroundColor(BG) }
@@ -186,8 +185,19 @@ class MainActivity : Activity() {
         override fun getDefaultVideoPoster(): Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
 
         override fun onConsoleMessage(m: ConsoleMessage?): Boolean {
-            m?.message()?.takeIf { it.startsWith("[tv]") }?.let { Log.i(TAG, it) }
+            m?.message()?.takeIf { it.startsWith("[tv]") }?.let {
+                Log.i(TAG, it)
+                if (it.startsWith("[tv] playing=")) keepScreenOn(it.endsWith("=1"))
+            }
             return true
+        }
+    }
+
+    /** The TV may go to sleep on a menu page; only a playing video keeps the screen on. */
+    private fun keepScreenOn(on: Boolean) {
+        runOnUiThread {
+            if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
@@ -346,13 +356,29 @@ class MainActivity : Activity() {
     (d.head || d.documentElement).appendChild(l);
   }
   if (window.__tv) return;
-  var tv = window.__tv = { paused: true, t: 0 };
+  var tv = window.__tv = { paused: true, t: 0, last: false };
+  // tells the app whether something is playing, so it can keep the screen on only then
+  function report() {
+    var playing = !tv.paused;
+    if (playing !== tv.last) { tv.last = playing; console.log('[tv] playing=' + (playing ? 1 : 0)); }
+  }
   window.addEventListener('message', function (e) {
     var k = e.data && e.data.key;
     if (k === 'kodik_player_play') tv.paused = false;
     else if (k === 'kodik_player_pause') tv.paused = true;
     else if (k === 'kodik_player_time_update') tv.t = Number(e.data.value) || 0;
+    report();
   });
+  ['play', 'pause', 'ended'].forEach(function (ev) {
+    d.addEventListener(ev, function (e) {
+      if (e.target.tagName !== 'VIDEO' || (e.target.muted && e.target.loop)) return;
+      tv.paused = ev !== 'play';
+      report();
+    }, true);
+  });
+  setInterval(function () { // left the player page without a pause event
+    if (tv.last && !d.querySelector('iframe,video')) { tv.paused = true; report(); }
+  }, 5000);
   tv.cmd = function (method, delta) {
     var want = method === 'toggle' ? (tv.paused ? 'play' : 'pause') : method;
     var v = d.querySelector('video');

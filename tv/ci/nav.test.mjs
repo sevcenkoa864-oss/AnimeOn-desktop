@@ -44,3 +44,11 @@ test('nothing in a direction returns null', () => {
 test('an element is never its own neighbour', () => {
   assert.equal(pickNext(row1[0], [row1[0]], 'right'), null);
 });
+
+test('a wide bar above a card grid is reached before the grid', () => {
+  const crumb = box('crumb', 112, 90, 165, 115, 'nav');
+  const bar = box('filters', 112, 206, 792, 254, 'filters');
+  const card = box('card', 108, 279, 308, 560, 'grid');
+  assert.equal(id(pickNext(crumb, [crumb, bar, card], 'down')), 'filters');
+  assert.equal(id(pickNext(bar, [crumb, bar, card], 'down')), 'card');
+});

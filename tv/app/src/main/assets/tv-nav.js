@@ -12,23 +12,30 @@
     return Math.max(0, b1 - a2, a1 - b2);
   };
 
+  /** Cross-axis penalty: the gap between the two intervals, plus how far apart their centres are. A wide item that
+   *  overlaps the current one (a filter bar over a card grid) must not lose to a narrow one just for its centre. */
+  function cross(a1, a2, b1, b2) {
+    var g = gap(a1, a2, b1, b2);
+    return g * 3 + Math.abs((b1 + b2) / 2 - (a1 + a2) / 2) * (g === 0 ? 0.1 : 0.5);
+  }
+
   /** Distance from rect f to rect c in direction dir, or null when c is not that way. Rects: {l,t,r,b}. */
   function score(f, c, dir) {
     var fx = (f.l + f.r) / 2, fy = (f.t + f.b) / 2, cx = (c.l + c.r) / 2, cy = (c.t + c.b) / 2;
     if (dir === 'right') {
       if (cx <= fx + 1 || c.r <= f.r) return null;
-      return Math.max(0, c.l - f.r) + gap(f.t, f.b, c.t, c.b) * 3 + Math.abs(cy - fy) * 0.5;
+      return Math.max(0, c.l - f.r) + cross(f.t, f.b, c.t, c.b);
     }
     if (dir === 'left') {
       if (cx >= fx - 1 || c.l >= f.l) return null;
-      return Math.max(0, f.l - c.r) + gap(f.t, f.b, c.t, c.b) * 3 + Math.abs(cy - fy) * 0.5;
+      return Math.max(0, f.l - c.r) + cross(f.t, f.b, c.t, c.b);
     }
     if (dir === 'down') {
       if (cy <= fy + 1 || c.b <= f.b) return null;
-      return Math.max(0, c.t - f.b) + gap(f.l, f.r, c.l, c.r) * 3 + Math.abs(cx - fx) * 0.5;
+      return Math.max(0, c.t - f.b) + cross(f.l, f.r, c.l, c.r);
     }
     if (cy >= fy - 1 || c.t >= f.t) return null;
-    return Math.max(0, f.t - c.b) + gap(f.l, f.r, c.l, c.r) * 3 + Math.abs(cx - fx) * 0.5;
+    return Math.max(0, f.t - c.b) + cross(f.l, f.r, c.l, c.r);
   }
 
   /**
@@ -72,7 +79,9 @@
   function isVisible(el, r) {
     if (r.width < 2 || r.height < 2) return false;
     var s = getComputedStyle(el);
-    return s.visibility !== 'hidden' && s.display !== 'none' && s.pointerEvents !== 'none';
+    if (s.visibility === 'hidden' || s.display === 'none' || s.pointerEvents === 'none') return false;
+    // hover-only controls (card buttons faded to opacity 0) must not take focus
+    return typeof el.checkVisibility !== 'function' || el.checkVisibility({ checkOpacity: true });
   }
 
   function topDialog() {
@@ -86,7 +95,9 @@
   function playerEls() {
     return Array.prototype.filter.call(d.querySelectorAll('iframe,video'), function (el) {
       var r = el.getBoundingClientRect();
-      return r.width > 240 && r.height > 120 && isVisible(el, r) && (el.tagName === 'VIDEO' || /kodik|animeon|player/i.test(el.src || ''));
+      if (r.width <= 240 || r.height <= 120 || !isVisible(el, r)) return false;
+      if (el.tagName === 'VIDEO') return !(el.muted && el.loop); // not the home page's background slider
+      return /kodik|animeon|player/i.test(el.src || '');
     });
   }
 
@@ -235,15 +246,17 @@
 
   // ---------- performance ----------
 
-  /** Previews must never play by themselves: pause muted/looping videos that are not the player. */
+  /** Previews must never play by themselves: muted, looping videos (the home slider's background) are kept paused. */
+  function isPreview(v) {
+    return v.muted && v.loop;
+  }
+  d.addEventListener('play', function (e) {
+    if (e.target.tagName === 'VIDEO' && isPreview(e.target)) e.target.pause();
+  }, true);
+
   function calmVideos() {
     var v = d.querySelectorAll('video');
-    for (var i = 0; i < v.length; i++) {
-      if ((v[i].muted && v[i].loop) || (!v[i].controls && v[i].offsetWidth < 400)) {
-        v[i].preload = 'none';
-        if (!v[i].paused) v[i].pause();
-      }
-    }
+    for (var i = 0; i < v.length; i++) if (isPreview(v[i]) && !v[i].paused) v[i].pause();
   }
 
   /** Everything below the first screen loads lazily, and decodes off the main thread. */

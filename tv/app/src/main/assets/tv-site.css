@@ -140,3 +140,8 @@ h1 {
   outline: none !important;
   transform: none !important;
 }
+
+/* the floating "open chat" button covers content and steals focus on a remote: not useful on a TV */
+button[aria-label*='общий чат'] {
+  display: none !important;
+}
