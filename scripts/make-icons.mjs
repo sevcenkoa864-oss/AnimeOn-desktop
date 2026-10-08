@@ -224,28 +224,6 @@ function render(size, logo, { inset = 0, tile = true, template = false } = {}) {
   return encodePng(size, px);
 }
 
-/** Android TV launcher banner (16:9): the logo centred on the site's dark surface. */
-function renderBanner(w, h, logo) {
-  const px = Buffer.alloc(w * h * 4);
-  const side = h * 0.78;
-  const left = (w - side) / 2;
-  const top = (h - side) / 2;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const t = (x / w + y / h) / 2;
-      const bg = [0x1c, 0x19, 0x26].map((c, i) => c + ([0x0a, 0x0a, 0x0c][i] - c) * t);
-      const g = playGlyph((x - w / 2) / side, (y - h / 2) / side);
-      const m = logo
-        ? sampleLogo(logo, (x - left) / side, (y - top) / side, (x + 1 - left) / side, (y + 1 - top) / side)
-        : [g, g, g, g];
-      const i = (y * w + x) * 4;
-      for (let c = 0; c < 3; c++) px[i + c] = Math.round(m[c] * 255 + bg[c] * (1 - m[3]));
-      px[i + 3] = 255;
-    }
-  }
-  return encodePng(w, px, h);
-}
-
 function ico(images) {
   const header = Buffer.alloc(6 + 16 * images.length);
   header.writeUInt16LE(1, 2); // type: icon
@@ -294,10 +272,4 @@ writeFileSync('assets/icon-mac.png', render(1024, logo, { inset: 0.1 })); // ele
 writeFileSync('assets/trayTemplate.png', render(16, logo, { tile: false, template: true }));
 writeFileSync('assets/trayTemplate@2x.png', render(32, logo, { tile: false, template: true }));
 writeFileSync('assets/logo.png', logo ? render(128, logo, { tile: false }) : render(128, null));
-// Android TV app (tv/): generated into its res folder, git-ignored like the rest of the logo-based output.
-const res = 'tv/app/src/main/res';
-mkdirSync(`${res}/mipmap-xxxhdpi`, { recursive: true });
-mkdirSync(`${res}/drawable-xhdpi`, { recursive: true });
-writeFileSync(`${res}/mipmap-xxxhdpi/ic_launcher.png`, render(192, logo));
-writeFileSync(`${res}/drawable-xhdpi/banner.png`, renderBanner(640, 360, logo));
 console.log(`icons written to assets/ (${logo ? 'site logo' : 'built-in play icon'})`);
